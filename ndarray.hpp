@@ -15,15 +15,15 @@ namespace nd
 namespace impl
 {
 template<class VALUETYPE>
-class ptr_or_vector
+class contiguous_memview
 {
 	std::unique_ptr<VALUETYPE[]> _vecdata;
 public:
 	VALUETYPE* _ptr;
 	size_t _size;
-	ptr_or_vector(VALUETYPE* ptr,size_t sz=0):_ptr(ptr),_size(sz)
+	contiguous_memview(VALUETYPE* ptr,size_t sz=0):_ptr(ptr),_size(sz)
 	{}
-	ptr_or_vector(size_t sz=0,const VALUETYPE& v={}):_ptr(nullptr),_size(sz)
+	contiguous_memview(size_t sz=0,const VALUETYPE& v={}):_ptr(nullptr),_size(sz)
 	{
 		if(sz) 
 		{
@@ -32,17 +32,17 @@ public:
 			_ptr=_vecdata.get();
 		}
 	}
-	ptr_or_vector& operator=(ptr_or_vector&& o)
+	contiguous_memview& operator=(contiguous_memview&& o)
 	{
 		_vecdata=std::move(o._vecdata);
 		_ptr=_vecdata ? _vecdata.get() : o._ptr;_size=o._size;
 		return *this;
 	}
-	ptr_or_vector(ptr_or_vector&& o): _vecdata(std::move(o._vecdata)),
+	contiguous_memview(contiguous_memview&& o): _vecdata(std::move(o._vecdata)),
 		_ptr(_vecdata ? _vecdata.get() : o._ptr),
 		_size(o._size)
 	{}
-	ptr_or_vector& operator=(const ptr_or_vector& o)
+	contiguous_memview& operator=(const contiguous_memview& o)
 	{
 		if(!o._vecdata)
 		{
@@ -60,7 +60,7 @@ public:
 		}
 		return *this;
 	}
-	ptr_or_vector(const ptr_or_vector& o)
+	contiguous_memview(const contiguous_memview& o)
 	{
 		operator=(o);
 	}
@@ -81,15 +81,17 @@ public:
 };
 }
 
+struct ColMajorOrder
+{
 template<unsigned int D>
-class ColMajorOrder: public impl::StorageOrderBase<D>
+class Impl: public impl::StorageOrderBase<D>
 {
 public:
 	using typename impl::StorageOrderBase<D>::size_type;
 protected:
 	size_type _strides;
 public:
-	ColMajorOrder(const size_type& tshape={}):
+	Impl(const size_type& tshape={}):
 		impl::StorageOrderBase<D>(tshape)
 	{
 		const size_type& shp=impl::StorageOrderBase<D>::shape();
@@ -120,26 +122,26 @@ public:
 		return out;
 	}
 	size_t size() const { return _strides[D-1]; }
-	bool operator==(const ColMajorOrder<D>& o) const { return true; }
-	template<class Order>
-	bool operator==(const Order& o) const { std::cout << "FAIL" << std::endl;return false; }
+	bool operator==(const Impl& o) const { return true; }
+	template<class OrderImpl>
+	bool operator==(const OrderImpl& o) const { return false; }
+};
 };
 
-template<class VALUETYPE,unsigned int D,template<unsigned int> class StorageType=ColMajorOrder >
+template<class VALUETYPE,unsigned int D,class AbstractStorageType=ColMajorOrder >
 class Array
 {
 public:
-	typedef VALUETYPE value_type;
-	typedef StorageType<D> storage_type;
-	typedef typename storage_type::size_type size_type;
+	using value_type=VALUETYPE;
+	using storage_type=typename AbstractStorageType::template Impl<D>;
+	using size_type=typename storage_type::size_type;
+	using iterator_type=VALUETYPE*;
 	static const unsigned int num_dimensions=D;
-	
-	template<unsigned int D2>
-	using abstract_storage_type = StorageType<D2>; // type-id is vector<T, Alloc<T>>
+	using abstract_storage_type=AbstractStorageType; // type-id is vector<T, Alloc<T>>
 	
 protected:
 	storage_type _storage;
-	impl::ptr_or_vector<value_type> _data;
+	impl::contiguous_memview<value_type> _data;
 
 public:
 	Array(VALUETYPE* ptr,const storage_type& tstorage):
@@ -164,31 +166,40 @@ public:
 	
 	size_t size() const { return _data._size; }
 	
-	value_type* data() { return _data._ptr; }
-	const value_type* data() const { return _data._ptr; }
 	
-	value_type* begin() { return data(); }
-	const value_type* begin() const { return _data._ptr; }
+	iterator_type begin() { return data(); }
+	const iterator_type begin() const { return _data._ptr; }
 	
-	value_type* end() { return data()+_data._size; }
-	const value_type* end() const { return data()+_data._size; }
+	iterator_type end() { return data()+_data._size; }
+	const iterator_type end() const { return data()+_data._size; }
 	
 	
 	const value_type& operator[](size_t dex) const { return _data._ptr[dex]; }
 	value_type& operator[](size_t dex) { return _data._ptr[dex]; }
+
+	
+	value_type* data() { return _data._ptr; }
+	const value_type* data() const { return _data._ptr; }
+	
 	
 	template<typename... Args>
 	size_t linearize(Args&&... args) const {
 		return _storage.linearize(std::forward<Args>(args)...);
 	}
-	template<typename... Args>
-	size_type unlinearize(Args&&... args) const {
-		return _storage.linearize(std::forward<Args>(args)...);
+	
+	size_type unlinearize(size_t dex) const {
+		return _storage.unlinearize(dex);
+	}
+	size_type unlinearize(const iterator_type& at) const { //helper method for iterators
+		return _storage.unlinearize(at-begin());
 	}
 	template<typename... Args>
 	auto shape(Args&&... args) const -> decltype(_storage.shape(std::forward<Args>(args)...)) {
 		return _storage.shape(std::forward<Args>(args)...);
 	}
+	
+	value_type* data(const size_type& offset) { return _data._ptr+linearize(offset); }
+	const value_type* data(const size_type& offset) const { return _data._ptr+linearize(offset); }
 
 	template<class ...IndexTail> 
 	const value_type& operator()(const IndexTail&... tail) const { 
@@ -202,10 +213,10 @@ public:
 public:
 	template<class BinaryOp,class Barray>
 	auto elementWise(BinaryOp f,const Barray& b) const->
-		Array<decltype(f(operator[](0),b[0])),D,StorageType>
+		Array<decltype(f(operator[](0),b[0])),D,abstract_storage_type>
 	{
 		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
-		Array<decltype(f(operator[](0),b[0])),D,StorageType> out(this->shape());
+		Array<decltype(f(operator[](0),b[0])),D,abstract_storage_type> out(this->shape());
 		if(_storage==b.storage())
 		{
 			std::transform(begin(),end(),b.begin(),out.begin(),f);
@@ -248,9 +259,9 @@ public:
 	}
 	template<class UnaryOp>
 	auto elementWise(UnaryOp f) const->
-	Array<decltype(f(operator[](0))),D,StorageType>
+	Array<decltype(f(operator[](0))),D,abstract_storage_type>
 	{
-		Array<decltype(f(operator[](0))),D,StorageType> out(this->shape());
+		Array<decltype(f(operator[](0))),D,abstract_storage_type> out(this->shape());
 		std::transform(begin(),end(),out.begin(),f);
 		return out;
 	}
@@ -281,42 +292,29 @@ std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 template<class ArrayClass,typename std::enable_if<(ArrayClass::num_dimensions > 2),int>::type = 0>
 std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 {
-	return out;
-}
-/*
-template<class VALUETYPE,class StorageType>
-std::ostream& operator<<(const Array<VALUETYPE,2,StorageType>& arr,std::ostream& out)
-{
-	for(size_t i=0;i<arr.shape(1);i++) out << arr << "\n";
-	return out;
-}
-template<class VALUETYPE,unsigned int D,class StorageType>
-std::ostream& operator<<(const Array<VALUETYPE,D,StorageType>& arr,std::ostream& out)
-{
-	for(size_t i=0;i<arr.shape(2);i++) 
+	for(size_t i=0;i<arr.shape(ArrayClass::num_dimensions-1);i++)
 	{
-		out << arr << "\n";
+		
+		Array<typename ArrayClass::value_type,ArrayClass::num_dimensions-1,typename ArrayClass::abstract_storage_type> outmap;
 	}
 	return out;
-}*/
-
-
+}
 
 //external values because SFNIAE for operator selection.
 #define BINARY_OPERATOR_TEMPLATE( XXX ) \
-template<class V,unsigned int D,template<unsigned int> class StG,class V2,template<unsigned int> class StG2> \
+template<class V,unsigned int D,class StG,class V2,class StG2> \
 auto operator XXX(const Array<V,D,StG>& a,const Array<V2,D,StG2>& b) \
 	->Array<decltype(a[0] XXX b[0]),D,StG> \
 { \
 	return a.elementWise([](const V& v1,const V2& v2){ return v1 XXX v2; },b); \
 } \
-template<class V,unsigned int D,template<unsigned int> class StG,class TypeB> \
+template<class V,unsigned int D,class StG,class TypeB> \
 auto operator XXX(const Array<V,D,StG>& a,const TypeB& b) \
 	-> Array<decltype(a[0] XXX b),D,StG> \
 { \
 	return a.elementWise([&b](const V& v1){ return v1 XXX b; }); \
 } \
-template<class V,unsigned int D,template<unsigned int> class StG,class TypeB> \
+template<class V,unsigned int D,class StG,class TypeB> \
 auto operator XXX(const TypeB& b,const Array<V,D,StG>& a) \
 -> Array<decltype(b XXX a[0]),D,StG> \
 { \
@@ -343,7 +341,7 @@ BINARY_OPERATOR_TEMPLATE(&&)
 BINARY_OPERATOR_TEMPLATE(||)
 
 #define UNARY_OPERATOR_TEMPLATE( XXX ) \
-template<class V,unsigned int D,template<unsigned int> class StG> \
+template<class V,unsigned int D, class StG> \
 auto operator XXX(const Array<V,D,StG>& a) \
 ->Array<decltype(XXX(a[0])),D,StG> \
 { \
@@ -356,13 +354,13 @@ UNARY_OPERATOR_TEMPLATE(-)
 UNARY_OPERATOR_TEMPLATE(+)
 
 #define INPLACE_OPERATOR_TEMPLATE( XXX ) \
-template<class V,unsigned int D,template<unsigned int> class StG,class V2,template<unsigned int> class StG2> \
+template<class V,unsigned int D,class StG,class V2, class StG2> \
 auto operator XXX(Array<V,D,StG>& a,const Array<V2,D,StG2>& b) \
 ->Array<V,D,StG>& \
 { \
 	return a.elementWiseInPlace([](V& v1,const V2& v2){ v1 XXX v2; },b); \
 } \
-template<class V,unsigned int D,template<unsigned int> class StG,class TypeB> \
+template<class V,unsigned int D,class StG,class TypeB> \
 auto operator XXX(Array<V,D,StG>& a,const TypeB& b) \
 -> Array<V,D,StG>& \
 { \
