@@ -120,6 +120,9 @@ public:
 		return out;
 	}
 	size_t size() const { return _strides[D-1]; }
+	bool operator==(const ColMajorOrder<D>& o) const { return true; }
+	template<class Order>
+	bool operator==(const Order& o) const { std::cout << "FAIL" << std::endl;return false; }
 };
 
 template<class VALUETYPE,unsigned int D,template<unsigned int> class StorageType=ColMajorOrder >
@@ -199,60 +202,47 @@ public:
 public:
 	template<class BinaryOp,class Barray>
 	auto elementWise(BinaryOp f,const Barray& b) const->
-	typename std::enable_if<std::is_same<storage_type,typename Barray::storage_type>::value,
 		Array<decltype(f(operator[](0),b[0])),D,StorageType>
-	>::type
 	{
 		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
 		Array<decltype(f(operator[](0),b[0])),D,StorageType> out(this->shape());
-		std::transform(begin(),end(),b.begin(),out.begin(),f);
-		return out;
-	}
-	template<class BinaryOp,class Barray>
-	auto elementWise(BinaryOp f,const Barray& b) const->
-	typename std::enable_if<!std::is_same<storage_type,typename Barray::storage_type>::value,
-	Array<decltype(f(operator[](0),b[0])),D,StorageType>
-	>::type
-	{
-		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
-		Array<decltype(f(operator[](0),b[0])),D,StorageType> out(this->shape());
-		size_t bN=b.size();
-		
-		for(size_t bi=0;bi<bN;bi++)
+		if(_storage==b.storage())
 		{
-			size_t ai=linearize(b.unlinearize(bi));
-			out[ai]=f(operator[](ai),b[bi]);
+			std::transform(begin(),end(),b.begin(),out.begin(),f);
+		}
+		else
+		{
+			size_t bN=b.size();
+			for(size_t bi=0;bi<bN;bi++)
+			{
+				size_t ai=linearize(b.unlinearize(bi));
+				out[ai]=f(operator[](ai),b[bi]);
+			}
 		}
 		return out;
 	}
-	
-	template<class BinaryOp,class Barray>
-	auto elementWiseInPlace(BinaryOp f,const Barray& b)->
-	typename std::enable_if<
-		std::is_same<storage_type,typename Barray::storage_type>::value,Array&
-	>::type
+
+	template<class BinaryOp,class ArrayB>
+	Array& elementWiseInPlace(BinaryOp f,const ArrayB& b)
 	{
 		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
-		auto abegin=begin();auto aend=end();auto bbegin=b.begin();auto bend=b.end();
-		while(abegin!=aend)
+		if(_storage==b.storage())
 		{
-			f(*abegin++,*bbegin++);
+			size_t bN=b.size();
+			for(size_t bi=0;bi<bN;bi++)
+			{
+				size_t ai=linearize(b.unlinearize(bi));
+				f(operator[](ai),b[bi]);
+			}
 		}
-		return *this;
-	}
-	template<class BinaryOp,class Barray>
-	auto elementWiseInPlace(BinaryOp f,const Barray& b)->
-	typename std::enable_if<
-		!std::is_same<storage_type,typename Barray::storage_type>::value,Array&
-	>::type
-	{
-		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
-		size_t bN=b.size();
-		
-		for(size_t bi=0;bi<bN;bi++)
+		else
 		{
-			size_t ai=linearize(b.unlinearize(bi));
-			f(operator[](ai),b[bi]);
+			size_t bN=b.size();
+			auto aptr=data();auto bptr=b.data();
+			for(size_t i=0;i<bN;i++)
+			{
+				f(aptr[i],bptr[i]);
+			}
 		}
 		return *this;
 	}
