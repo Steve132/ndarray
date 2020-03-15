@@ -4,7 +4,7 @@
 #include<array>
 #include<numeric>
 #include<functional>
-#include<vector>
+#include<memory>
 #include<type_traits>
 #include<algorithm>
 #include<iterator>
@@ -15,39 +15,54 @@ namespace nd
 namespace impl
 {
 template<class VALUETYPE>
-struct ptr_or_vector
+class ptr_or_vector
 {
-	std::vector<VALUETYPE> _vector;
+	std::unique_ptr<VALUETYPE[]> _vecdata;
 public:
 	VALUETYPE* _ptr;
 	size_t _size;
 	ptr_or_vector(VALUETYPE* ptr,size_t sz=0):_ptr(ptr),_size(sz)
 	{}
-	template<typename... Args>
-	explicit ptr_or_vector(Args&&... args):
-		_vector(std::forward<Args>(args)...),
-		_ptr(_vector.data()),
-		_size(_vector.size())
-	{}
-	ptr_or_vector(const ptr_or_vector& o): _vector(o._vector),
-		_ptr(_vector.size() ? _vector.data() : o._ptr),
-		_size(o._size)
-	{}
-	ptr_or_vector(ptr_or_vector&& o): _vector(std::move(o._vector)),
-		_ptr(_vector.size() ? _vector.data() : o._ptr),
-		_size(o._size)
-	{}
+	ptr_or_vector(size_t sz=0,const VALUETYPE& v={}):_ptr(nullptr),_size(sz)
+	{
+		if(sz) 
+		{
+			_vecdata.reset(new VALUETYPE[sz]);
+			std::fill(_vecdata.get(),_vecdata.get()+sz,v);
+			_ptr=_vecdata.get();
+		}
+	}
 	ptr_or_vector& operator=(ptr_or_vector&& o)
 	{
-		_vector=std::move(o._vector);
-		_ptr=_vector.size() ? _vector.data() : o._ptr;_size=o._size;
+		_vecdata=std::move(o._vecdata);
+		_ptr=_vecdata ? _vecdata.get() : o._ptr;_size=o._size;
 		return *this;
 	}
+	ptr_or_vector(ptr_or_vector&& o): _vecdata(std::move(o._vecdata)),
+		_ptr(_vecdata ? _vecdata.get() : o._ptr),
+		_size(o._size)
+	{}
 	ptr_or_vector& operator=(const ptr_or_vector& o)
 	{
-		_vector=o._vector;
-		_ptr=_vector.size() ? _vector.data() : o._ptr;_size=o._size;
+		if(!o._vecdata)
+		{
+			_vecdata.release();
+			_ptr=o._ptr;_size=o._size;
+		}
+		else
+		{
+			if(_size != o._size || !_vecdata)
+			{
+				_vecdata.reset(new VALUETYPE[o._size]);
+			}
+			std::copy(o._vecdata.get(),o._vecdata.get()+o._size,_vecdata.get());
+			_ptr=_vecdata.get();_size=o._size;
+		}
 		return *this;
+	}
+	ptr_or_vector(const ptr_or_vector& o)
+	{
+		operator=(o);
 	}
 };
 template<unsigned int D>
@@ -115,6 +130,9 @@ public:
 	typedef StorageType<D> storage_type;
 	typedef typename storage_type::size_type size_type;
 	static const unsigned int num_dimensions=D;
+	
+	template<unsigned int D2>
+	using abstract_storage_type = StorageType<D2>; // type-id is vector<T, Alloc<T>>
 	
 protected:
 	storage_type _storage;
@@ -254,15 +272,6 @@ public:
 	}
 };
 
-namespace impl
-{
-//horrible.
-template<template<class,unsigned int,template<unsigned int> class> class ArrayClass,class BinaryResult,unsigned int D,template<unsigned int> class Stg>
-struct ElementWiseMeta{
-	typedef ArrayClass<BinaryResult,D,Stg> type;
-};
-}
-
 template<class ArrayClass,typename std::enable_if<ArrayClass::num_dimensions==1,int>::type = 0>
 std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 {
@@ -277,6 +286,11 @@ std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 		for(size_t j=0;j<arr.shape(1);j++) out << arr(i,j) << " ";
 		out << "\n";
 	}
+	return out;
+}
+template<class ArrayClass,typename std::enable_if<(ArrayClass::num_dimensions > 2),int>::type = 0>
+std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
+{
 	return out;
 }
 /*
@@ -296,113 +310,93 @@ std::ostream& operator<<(const Array<VALUETYPE,D,StorageType>& arr,std::ostream&
 	return out;
 }*/
 
-/*TODO: this should be an expression template*/
-template<class VALUETYPE,unsigned int D,template<unsigned int> class StorageType=ColMajorOrder >
-class LinearArray: public Array<VALUETYPE,D,StorageType>
-{
-protected:
-
-public:
-	using typename Array<VALUETYPE,D,StorageType>::value_type;
-	using typename Array<VALUETYPE,D,StorageType>::size_type; 
-	using typename Array<VALUETYPE,D,StorageType>::storage_type; 
-	using Array<VALUETYPE,D,StorageType>::Array;
-	
-	using Array<VALUETYPE,D,StorageType>::operator[];
-	using Array<VALUETYPE,D,StorageType>::operator();
-	
-	template<class ArrayB>
-	LinearArray(ArrayB&& o):Array<VALUETYPE,D,StorageType>(std::move(o))
-	{}
-	template<class ArrayB>
-	LinearArray(const ArrayB& o):Array<VALUETYPE,D,StorageType>(o)
-	{}
-	template<class ArrayB>
-	LinearArray& operator=(ArrayB&& o)
-	{
-		Array<VALUETYPE,D,StorageType>::operator=(std::move(o));
-		return *this;
-	}
-	template<class ArrayB>
-	LinearArray& operator=(const ArrayB& o)
-	{
-		Array<VALUETYPE,D,StorageType>::operator=(o);
-		return *this;
-	}
-};
 
 
 //external values because SFNIAE for operator selection.
 #define BINARY_OPERATOR_TEMPLATE( XXX ) \
 template<class V,unsigned int D,template<unsigned int> class StG,class V2,template<unsigned int> class StG2> \
-auto operator XXX(const LinearArray<V,D,StG>& a,const Array<V2,D,StG2>& b) \
-	->typename impl::ElementWiseMeta<LinearArray,decltype(a[0] XXX b[0]),D,StG>::type \
+auto operator XXX(const Array<V,D,StG>& a,const Array<V2,D,StG2>& b) \
+	->Array<decltype(a[0] XXX b[0]),D,StG> \
 { \
 	return a.elementWise([](const V& v1,const V2& v2){ return v1 XXX v2; },b); \
 } \
 template<class V,unsigned int D,template<unsigned int> class StG,class TypeB> \
-auto operator XXX(const LinearArray<V,D,StG>& a,const TypeB& b) \
-->typename impl::ElementWiseMeta<LinearArray,decltype(a[0] XXX b),D,StG>::type \
+auto operator XXX(const Array<V,D,StG>& a,const TypeB& b) \
+	-> Array<decltype(a[0] XXX b),D,StG> \
 { \
 	return a.elementWise([&b](const V& v1){ return v1 XXX b; }); \
 } \
-
-/*
 template<class V,unsigned int D,template<unsigned int> class StG,class TypeB> \
-auto operator XXX(const TypeB& b,const LinearArray<V,D,StG>& a) \
-->typename impl::ElementWiseMeta<LinearArray,decltype(b XXX a[0]),D,StG>::type \
+auto operator XXX(const TypeB& b,const Array<V,D,StG>& a) \
+-> Array<decltype(b XXX a[0]),D,StG> \
 { \
 	return a.elementWise([&b](const V& v1){ return b XXX v1; }); \
 } \
-*/
 
-
-BINARY_OPERATOR_TEMPLATE(+)
-BINARY_OPERATOR_TEMPLATE(-)
 BINARY_OPERATOR_TEMPLATE(*)
 BINARY_OPERATOR_TEMPLATE(/)
 BINARY_OPERATOR_TEMPLATE(%)
-/*
+BINARY_OPERATOR_TEMPLATE(+)
+BINARY_OPERATOR_TEMPLATE(-)
+BINARY_OPERATOR_TEMPLATE(<<)
+BINARY_OPERATOR_TEMPLATE(>>)
+BINARY_OPERATOR_TEMPLATE(<)
+BINARY_OPERATOR_TEMPLATE(>)
+BINARY_OPERATOR_TEMPLATE(<=)
+BINARY_OPERATOR_TEMPLATE(>=)
+BINARY_OPERATOR_TEMPLATE(==)
+BINARY_OPERATOR_TEMPLATE(!=)
+BINARY_OPERATOR_TEMPLATE(&)
+BINARY_OPERATOR_TEMPLATE(|)
+BINARY_OPERATOR_TEMPLATE(^)
+BINARY_OPERATOR_TEMPLATE(&&)
+BINARY_OPERATOR_TEMPLATE(||)
+
+#define UNARY_OPERATOR_TEMPLATE( XXX ) \
+template<class V,unsigned int D,template<unsigned int> class StG> \
+auto operator XXX(const Array<V,D,StG>& a) \
+->Array<decltype(XXX(a[0])),D,StG> \
+{ \
+	return a.elementWise([](const V& v1){ return XXX(v1); }); \
+} \
+
+UNARY_OPERATOR_TEMPLATE(~)
+UNARY_OPERATOR_TEMPLATE(!)
+UNARY_OPERATOR_TEMPLATE(-)
+UNARY_OPERATOR_TEMPLATE(+)
+
+#define INPLACE_OPERATOR_TEMPLATE( XXX ) \
+template<class V,unsigned int D,template<unsigned int> class StG,class V2,template<unsigned int> class StG2> \
+auto operator XXX(Array<V,D,StG>& a,const Array<V2,D,StG2>& b) \
+->Array<V,D,StG>& \
+{ \
+	return a.elementWiseInPlace([](V& v1,const V2& v2){ v1 XXX v2; },b); \
+} \
+template<class V,unsigned int D,template<unsigned int> class StG,class TypeB> \
+auto operator XXX(Array<V,D,StG>& a,const TypeB& b) \
+-> Array<V,D,StG>& \
+{ \
+	return a.elementWiseInPlace([&b](V& v1){ v1 XXX b; }); \
+} \
+
+INPLACE_OPERATOR_TEMPLATE(*=)
+INPLACE_OPERATOR_TEMPLATE(/=)
+INPLACE_OPERATOR_TEMPLATE(+=)
+INPLACE_OPERATOR_TEMPLATE(-=)
+INPLACE_OPERATOR_TEMPLATE(>>=)
+INPLACE_OPERATOR_TEMPLATE(<<=)
+INPLACE_OPERATOR_TEMPLATE(&=)
+INPLACE_OPERATOR_TEMPLATE(^=)
+INPLACE_OPERATOR_TEMPLATE(|=)
+//++,--
 
 
-template<class V,unsigned int D,template<unsigned int> class StG,class ArrayB>
-auto operator-(const LinearArray<V,D,StG>& a,const ArrayB& b)
-->typename impl::ElementWiseMeta<LinearArray,decltype(a[0]-b[0]),D,StG>::type
-{
-	return a.elementWise([](const V& v1,const typename ArrayB::value_type& v2){ return v1-v2; },b);
-}
-template<class V,unsigned int D,template<unsigned int> class StG,class ArrayB>
-auto operator/(const LinearArray<V,D,StG>& a,const ArrayB& b)
-->typename impl::ElementWiseMeta<LinearArray,decltype(a[0]/b[0]),D,StG>::type
-{
-	return a.elementWise([](const V& v1,const typename ArrayB::value_type& v2){ return v1/v2; },b);
-}
-template<class V,unsigned int D,template<unsigned int> class StG,class ArrayB>
-auto operator%(const LinearArray<V,D,StG>& a,const ArrayB& b)
-->typename impl::ElementWiseMeta<LinearArray,decltype(a[0]%b[0]),D,StG>::type
-{
-	return a.elementWise([](const V& v1,const typename ArrayB::value_type& v2){ return v1%v2; },b);
-}
 
-template<class V,unsigned int D,template<unsigned int> class StG,class ArrayB>
-auto operator/(const LinearArray<V,D,StG>& a,const ArrayB& b)
-->typename impl::ElementWiseMeta<LinearArray,decltype(a[0]*b[0]),D,StG>::type
-{
-	return a.elementWise([](const typename V& v1,const typename ArrayB::value_type& v2){ return v1*v2; },b);
-}
-template<class V,unsigned int D,template<unsigned int> class StG>
-auto operator+(const LinearArray<V,D,StG>& a)
-->typename impl::ElementWiseMeta<LinearArray,decltype(+a[0]),D,StG>::type
-{
-	return a.elementWise([](const V& v1){ return +v1; });
-}
 
-template<class V,unsigned int D,template<unsigned int> class StG>
-auto operator-(const LinearArray<V,D,StG>& a)
-->typename impl::ElementWiseMeta<LinearArray,decltype(+a[0]),D,StG>::type
-{
-	return a.elementWise([](const V& v1){ return -v1; });
-}*/
+
+
+
+
 
 
 }
