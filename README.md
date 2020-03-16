@@ -16,7 +16,7 @@ Blitz++ and boost.multi_array are good options.  But Blitz++ is *very large* and
 
 boost.multi_array requires **boost**.  'nuff said.
 
-This is a *single header file*.  No hassles.
+This is header-only and it always will be.  No hassles.
 
 Example code:
 
