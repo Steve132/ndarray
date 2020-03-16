@@ -10,7 +10,6 @@
 #include<iterator>
 #include<iostream>
 
-
 namespace nd
 {
 namespace impl
@@ -389,15 +388,6 @@ INPLACE_OPERATOR_TEMPLATE(&=)
 INPLACE_OPERATOR_TEMPLATE(^=)
 INPLACE_OPERATOR_TEMPLATE(|=)
 //++,--
-
-
-
-
-
-
-
-
-
 
 }
 
