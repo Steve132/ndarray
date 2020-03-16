@@ -238,19 +238,19 @@ public:
 		if(_storage==b.storage())
 		{
 			size_t bN=b.size();
-			for(size_t bi=0;bi<bN;bi++)
+			auto aptr=data();auto bptr=b.data();
+			for(size_t i=0;i<bN;i++)
 			{
-				size_t ai=ravel(b.unravel(bi));
-				f(operator[](ai),b[bi]);
+				f(aptr[i],bptr[i]);
 			}
 		}
 		else
 		{
 			size_t bN=b.size();
-			auto aptr=data();auto bptr=b.data();
-			for(size_t i=0;i<bN;i++)
+			for(size_t bi=0;bi<bN;bi++)
 			{
-				f(aptr[i],bptr[i]);
+				size_t ai=ravel(b.unravel(bi));
+				f(operator[](ai),b[bi]);
 			}
 		}
 		return *this;
