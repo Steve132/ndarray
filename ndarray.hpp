@@ -10,6 +10,7 @@
 #include<iterator>
 #include<iostream>
 
+
 namespace nd
 {
 namespace impl
@@ -69,14 +70,14 @@ template<unsigned int D>
 class StorageOrderBase
 {
 public:
-	typedef std::array<size_t,D> size_type;
-
+	using shape_type=std::array<size_t,D>;
+	using index_type=std::array<ptrdiff_t,D>;
 protected:
-	size_type _shape;
-	StorageOrderBase(const size_type& tshape):_shape(tshape)
+	shape_type _shape;
+	StorageOrderBase(const shape_type& tshape):_shape(tshape)
 	{}
 public:
-	const size_type& shape() const { return _shape; }
+	const shape_type& shape() const { return _shape; }
 	size_t shape(unsigned int d) const { return _shape[d]; }
 };
 }
@@ -87,14 +88,15 @@ template<unsigned int D>
 class Impl: public impl::StorageOrderBase<D>
 {
 public:
-	using typename impl::StorageOrderBase<D>::size_type;
+	using shape_type=typename impl::StorageOrderBase<D>::shape_type;
+	using index_type=typename impl::StorageOrderBase<D>::index_type;
 protected:
-	size_type _strides;
+	shape_type _strides;
 public:
-	Impl(const size_type& tshape={}):
+	Impl(const shape_type& tshape={}):
 		impl::StorageOrderBase<D>(tshape)
 	{
-		const size_type& shp=impl::StorageOrderBase<D>::shape();
+		const shape_type& shp=impl::StorageOrderBase<D>::shape();
 		std::partial_sum(
 			std::begin(shp),
 						 std::begin(shp)+D,
@@ -102,23 +104,24 @@ public:
 						 [](size_t a,size_t b){ return a*b; } 
 		);
 	}
-
+	
 	template<class IndexType>
-	size_t linearize(const IndexType& index) const {
+	size_t ravel(const IndexType& index) const {
 		return index[0]+std::inner_product(std::begin(index)+1,std::begin(index)+D,std::begin(_strides),size_t(0));
 	}
 	template<class IndexHead1,class IndexHead2,class... IndexTail>
-	size_t linearize(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
-		return linearize(std::array<IndexHead1,2+sizeof...(tail)>{index1,index2,tail...});
+	size_t ravel(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
+		return ravel(std::array<IndexHead1,2+sizeof...(tail)>{index1,index2,tail...});
 	}
-	size_type unlinearize(size_t index) const {
-		size_type out;
+	index_type unravel(size_t index) const {
+		index_type out;
 		auto outiter=std::rbegin(out);
 		auto rend=std::rbegin(_strides)+D;
 		for(auto stiter=std::rbegin(_strides)+1;stiter!=rend;stiter++,outiter++){	
 			*(outiter)=index/(*stiter);
 			index=index%(*stiter);
 		}
+		*outiter=index;
 		return out;
 	}
 	size_t size() const { return _strides[D-1]; }
@@ -134,8 +137,10 @@ class Array
 public:
 	using value_type=VALUETYPE;
 	using storage_type=typename AbstractStorageType::template Impl<D>;
-	using size_type=typename storage_type::size_type;
+	using shape_type=typename storage_type::shape_type;
+	using index_type=typename storage_type::index_type;
 	using iterator_type=VALUETYPE*;
+	using const_iterator_type=const VALUETYPE*;
 	static const unsigned int num_dimensions=D;
 	using abstract_storage_type=AbstractStorageType; // type-id is vector<T, Alloc<T>>
 	
@@ -152,11 +157,11 @@ public:
 		_storage(tstorage),
 		_data(_storage.size(),fval)
 	{}
-	Array(VALUETYPE* ptr,const size_type& tshape):
+	Array(VALUETYPE* ptr,const shape_type& tshape):
 	_storage(tshape),
 	_data(ptr,_storage.size())
 	{}
-	Array(const size_type& tshape={},const VALUETYPE& fval=VALUETYPE()):
+	Array(const shape_type& tshape={},const VALUETYPE& fval=VALUETYPE()):
 	_storage(tshape),
 	_data(_storage.size(),fval)
 	{}
@@ -166,51 +171,44 @@ public:
 	
 	size_t size() const { return _data._size; }
 	
-	
 	iterator_type begin() { return data(); }
-	const iterator_type begin() const { return _data._ptr; }
+	const_iterator_type begin() const { return _data._ptr; }
 	
 	iterator_type end() { return data()+_data._size; }
-	const iterator_type end() const { return data()+_data._size; }
-	
+	const_iterator_type end() const { return data()+_data._size; }
 	
 	const value_type& operator[](size_t dex) const { return _data._ptr[dex]; }
 	value_type& operator[](size_t dex) { return _data._ptr[dex]; }
 
-	
 	value_type* data() { return _data._ptr; }
 	const value_type* data() const { return _data._ptr; }
 	
 	
 	template<typename... Args>
-	size_t linearize(Args&&... args) const {
-		return _storage.linearize(std::forward<Args>(args)...);
+	size_t ravel(Args&&... args) const {
+		return _storage.ravel(std::forward<Args>(args)...);
 	}
 	
-	size_type unlinearize(size_t dex) const {
-		return _storage.unlinearize(dex);
+	index_type unravel(size_t dex) const {
+		return _storage.unravel(dex);
 	}
-	size_type unlinearize(const iterator_type& at) const { //helper method for iterators
-		return _storage.unlinearize(at-begin());
+	index_type unravel(const iterator_type& at) const { //helper method for iterators
+		return _storage.unravel(at-begin());
 	}
 	template<typename... Args>
 	auto shape(Args&&... args) const -> decltype(_storage.shape(std::forward<Args>(args)...)) {
 		return _storage.shape(std::forward<Args>(args)...);
 	}
 	
-	value_type* data(const size_type& offset) { return _data._ptr+linearize(offset); }
-	const value_type* data(const size_type& offset) const { return _data._ptr+linearize(offset); }
-
 	template<class ...IndexTail> 
 	const value_type& operator()(const IndexTail&... tail) const { 
-		return operator[](linearize(tail...)); 
+		return operator[](ravel(tail...)); 
 	}
 	template<class ...IndexTail> 
 	value_type& operator()(const IndexTail&... tail) { 
-		return operator[](linearize(tail...)); 
+		return operator[](ravel(tail...)); 
 	}
 
-public:
 	template<class BinaryOp,class Barray>
 	auto elementWise(BinaryOp f,const Barray& b) const->
 		Array<decltype(f(operator[](0),b[0])),D,abstract_storage_type>
@@ -226,7 +224,7 @@ public:
 			size_t bN=b.size();
 			for(size_t bi=0;bi<bN;bi++)
 			{
-				size_t ai=linearize(b.unlinearize(bi));
+				size_t ai=ravel(b.unravel(bi));
 				out[ai]=f(operator[](ai),b[bi]);
 			}
 		}
@@ -242,7 +240,7 @@ public:
 			size_t bN=b.size();
 			for(size_t bi=0;bi<bN;bi++)
 			{
-				size_t ai=linearize(b.unlinearize(bi));
+				size_t ai=ravel(b.unravel(bi));
 				f(operator[](ai),b[bi]);
 			}
 		}
@@ -271,6 +269,19 @@ public:
 		std::for_each(begin(),end(),f);
 		return *this;
 	}
+	
+	//TODO make sure there's handling for D==0 or D==1
+	Array<value_type,D-1,abstract_storage_type> pop_order_ref(unsigned int d) const
+	{
+		using Am1=Array<value_type,D-1,abstract_storage_type>;
+		typename Am1::shape_type shp;
+		const shape_type& mshp=shape();
+		std::copy(std::begin(mshp),std::begin(mshp)+D-1,std::begin(shp));
+		typename Am1::shape_type zed={};
+		zed[D-1]=d;
+		const value_type* slicebegin=data()+ravel(zed);
+		return Array<value_type,D-1,abstract_storage_type>(const_cast<value_type*>(slicebegin),shp);
+	}
 };
 
 template<class ArrayClass,typename std::enable_if<ArrayClass::num_dimensions==1,int>::type = 0>
@@ -294,8 +305,9 @@ std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 {
 	for(size_t i=0;i<arr.shape(ArrayClass::num_dimensions-1);i++)
 	{
-		
-		Array<typename ArrayClass::value_type,ArrayClass::num_dimensions-1,typename ArrayClass::abstract_storage_type> outmap;
+		auto outmap=arr.pop_order_ref(i);
+		out << "Dim[" << ArrayClass::num_dimensions-1 << "]=" << i << "\n";
+		out << outmap;
 	}
 	return out;
 }
