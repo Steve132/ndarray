@@ -26,6 +26,7 @@ std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 	}
 	return out;
 }
+
 template<class ArrayClass,typename std::enable_if<(ArrayClass::num_dimensions > 2),int>::type = 0>
 std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 {

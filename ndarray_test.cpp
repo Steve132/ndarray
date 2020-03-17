@@ -30,7 +30,7 @@ int main()
 	
 	std::cout << data << std::endl;
 	std::cout << "nx\n" << std::endl;
-	std::cout << b << std::endl;
-	std::cout << B;
+//	std::cout << b << std::endl;
+//	std::cout << B;
 	return 0;
 }

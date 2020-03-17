@@ -7,9 +7,8 @@
 
 namespace nd
 {
-template<class V,unsigned int D, class StG> class Array;
-
-struct ColMajorOrder
+template<class V,unsigned int D, class StG> class Array;	//TODO this is implemented incorrectly
+struct RowMajorOrder
 {
 template<class VALUETYPE,unsigned int D>
 class Impl: public impl::ContiguousOrderBaseImpl<VALUETYPE,D>
@@ -73,19 +72,16 @@ public:
 	using impl::ContiguousOrderBaseImpl<VALUETYPE,D>::operator[];
 	
 	//TODO make sure there's handling for D==0 or D==1
-	//TODO: this doesnt' work with any data ordering that's not Rowise or Colwise (Zorder and non-contig don't work)
-	//Honestly this is why we should go back to inheritance from storage order.  Different accessors for different storage orders
-	//this also allows SNFIAE
-	Array<value_type,D-1,ColMajorOrder> pop_order_ref(unsigned int d) const
+	Array<value_type,D-1,RowMajorOrder> pop_order_ref(unsigned int d) const
 	{
-		using Am1=Array<value_type,D-1,ColMajorOrder>;
+		using Am1=Array<value_type,D-1,RowMajorOrder>;
 		typename Am1::shape_type shp;
 		const shape_type& mshp= impl::StorageOrderBase<D>::shape();
 		std::copy(std::begin(mshp),std::begin(mshp)+D-1,std::begin(shp));
 		typename Am1::shape_type zed={};
 		zed[D-1]=d;
 		const value_type* slicebegin=impl::ContiguousOrderBaseImpl<VALUETYPE,D>::data()+ravel(zed);
-		return Array<value_type,D-1,ColMajorOrder>(const_cast<value_type*>(slicebegin),shp);
+		return Array<value_type,D-1,RowMajorOrder>(const_cast<value_type*>(slicebegin),shp);
 	}
 };
 };
