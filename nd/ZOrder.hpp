@@ -1,63 +1,116 @@
-#ifndef NDARRAY_COL_MAJOR_ORDER_HPP
-#define NDARRAY_COL_MAJOR_ORDER_HPP
+#ifndef NDARRAY_ZORDER_HPP
+#define NDARRAY_ZORDER_HPP
 
 #include<numeric>
 #include<iterator>
-#include "src/StorageOrderBase.hpp"
+#include "src/ContiguousOrderBase.hpp"
 #include<bitset>
+#include<stdexcept>
+#include<x86intrin.h>
 
 namespace nd
 {
 struct ZOrder
 {
-template<unsigned int D>
-class Impl: public impl::StorageOrderBase<D>
+template<class VALUETYPE,unsigned int D>
+class Impl: public impl::ContiguousOrderBaseImpl<VALUETYPE,D>
 {
 public:
-	using shape_type=typename impl::StorageOrderBase<D>::shape_type;
-	using index_type=typename impl::StorageOrderBase<D>::index_type;
+	using value_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::value_type;
+	using shape_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::shape_type;
+	using index_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::index_type;
+	using iterator_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::iterator_type;
+	using const_iterator_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::const_iterator_type;
 protected:
 	shape_type _masks;
-	
+	static inline std::uint64_t pdep(std::uint64_t x,std::uint64_t msk)
+	{
+		return _pdep_u64(x,msk);
+	}
+	static inline std::uint32_t pdep(std::uint32_t x,std::uint32_t msk)
+	{
+		return _pdep_u32(x,msk);
+	}
+	static inline std::uint64_t pext(std::uint64_t x,std::uint64_t msk)
+	{
+		return _pext_u64(x,msk);
+	}
+	static inline std::uint32_t pext(std::uint32_t x,std::uint32_t msk)
+	{
+		return _pext_u32(x,msk);
+	}
 	static inline unsigned int popcount(size_t a)
 	{
-		return std::bitset<sizeof(size_t)*8>(a).count();
+		return std::bitset<sizeof(size_t)*8>(a).count(); 
 	}
-public:
-	Impl(const shape_type& tshape={}):
-		impl::StorageOrderBase<D>(tshape)
+	
+	static constexpr size_t mask_compute(unsigned int startpoint,unsigned int maxpoint, unsigned int Delta)
+	{
+		size_t out=0;
+		for(unsigned int ci=startpoint;ci<maxpoint;ci+=Delta)
+		{
+			out|=size_t(1) << ci;
+		}
+		return out;
+	}
+	
+	void computeMasksHypercube(const shape_type& shp)
+	{
+		for(size_t d=0;d<D;d++)
+		{
+			_masks[d]=mask_compute(d,sizeof(size_t)*8,D) & (shp[0]-1);
+		}
+	}
+	
+	void computeMasksOuter(shape_type shp)
+	{
+		
+	}
+	size_t setMasks(const shape_type& tshape)
 	{
 		const shape_type& shp=impl::StorageOrderBase<D>::shape();
-		
-		if(
-		std::partial_sum(
-			std::begin(shp),
-						 std::begin(shp)+D,
-						 std::begin(_strides),
-						 [](size_t a,size_t b){ return a*b; } 
+		size_t sz=std::accumulate(std::begin(shp),std::begin(shp),[](size_t a,size_t b) { return a*b; },size_t(1));
+		//confirm that all dimensions are the same power of two:  
+		size_t ored_sizes=std::accumulate(
+			std::begin(shp),std::begin(shp)+D,
+			[](const std::size_t& s1,const std::size_t& s2) { return s1 | s2; },
+			0
 		);
+		
+		if(popcount(ored_sizes)!=1)
+		{
+			throw std::invalid_argument("A Z-Order array must (currently) be a power-of-two hypercube (all dimensions are the same power of 2)");
+		}
+		computeMasksHypercube(shp);
+		return sz;
 	}
+public:
+	Impl(const shape_type& tshape={},const value_type& v={}):
+		impl::ContiguousOrderBaseImpl<VALUETYPE,D>(setMasks(tshape),tshape,v)
+	{}
 	
 	template<class IndexType>
 	size_t ravel(const IndexType& index) const {
-		return index[0]+std::inner_product(std::begin(index)+1,std::begin(index)+D,std::begin(_strides),size_t(0));
+		size_t out=0;
+		for(unsigned int d=0;d<D;d++)
+		{
+			out|=pdep(index[d],_masks[d]);
+		}
 	}
+
 	template<class IndexHead1,class IndexHead2,class... IndexTail>
 	size_t ravel(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
 		return ravel(std::array<IndexHead1,2+sizeof...(tail)>{index1,index2,tail...});
 	}
 	index_type unravel(size_t index) const {
 		index_type out;
-		auto outiter=std::rbegin(out);
-		auto rend=std::rbegin(_strides)+D;
-		for(auto stiter=std::rbegin(_strides)+1;stiter!=rend;stiter++,outiter++){	
-			*(outiter)=index/(*stiter);
-			index=index%(*stiter);
+		for(unsigned int d=0;d<D;d++)
+		{
+			out[d]=pext(index,_masks[d]);
 		}
-		*outiter=index;
 		return out;
 	}
-	size_t size() const { return _strides[D-1]; }
+	
 	bool operator==(const Impl& o) const { return true; }
 	template<class OrderImpl>
 	bool operator==(const OrderImpl& o) const { return false; }

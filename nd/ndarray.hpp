@@ -4,5 +4,8 @@
 #include "src/ContiguousMemView.hpp"
 #include "src/StorageOrderBase.hpp"
 #include "Array.hpp"
+#include "ColMajorOrder.hpp"
+#include "RowMajorOrder.hpp"
+#include "ZOrder.hpp"
 
 #endif

@@ -27,6 +27,7 @@ int main()
 	A-=u;
 	B-=u;
 	
+	nd::Array<double,2> az({4,4});
 	
 	std::cout << data << std::endl;
 	std::cout << "nx\n" << std::endl;

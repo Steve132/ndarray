@@ -64,7 +64,6 @@ public:
 		return unravel(at-impl::ContiguousOrderBaseImpl<VALUETYPE,D>::begin());
 	}
 	
-	size_t size() const { return _strides[D-1]; }
 	bool operator==(const Impl& o) const { return true; }
 	template<class OrderImpl>
 	bool operator==(const OrderImpl& o) const { return false; }

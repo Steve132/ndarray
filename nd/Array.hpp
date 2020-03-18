@@ -109,7 +109,17 @@ public:
 		return *this;
 	}
 	
-
+	void permuteInPlace(const shape_type& pvals) const
+	{
+		size_t aN=storage_type::size();
+		for(size_t ai=0;ai<aN;ai++)
+		{
+			index_type dex=storage_type::unravel(ai);
+			index_type new_dex;
+			for(unsigned di=0;di<D;di++) { new_dex[di]=dex[pvals[di]]; }
+			std::swap(operator[](storage_type::ravel(new_dex)),dex);
+		}
+	}
 };
 }
 
