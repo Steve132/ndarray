@@ -27,7 +27,11 @@ int main()
 	A-=u;
 	B-=u;
 	
-	nd::Array<double,2> az({4,4});
+	nd::Array<double,2,nd::ZOrder> az({4,16});
+	
+	
+	std::cout << "{" << az.masks()[0] << "," << az.masks()[1] << "}" << std::endl;
+	
 	
 	std::cout << data << std::endl;
 	std::cout << "nx\n" << std::endl;
