@@ -27,10 +27,10 @@ int main()
 	A-=u;
 	B-=u;
 	
-	nd::Array<double,2,nd::ZOrder> az({4,16});
+	nd::Array<double,3,nd::ZOrder> az({4,16,4});
 	
 	
-	std::cout << "{" << az.masks()[0] << "," << az.masks()[1] << "}" << std::endl;
+	std::cout << "{" << az.masks()[0] << "," << az.masks()[1] << "," << az.masks()[2] << "}" << std::endl;
 	
 	
 	std::cout << data << std::endl;

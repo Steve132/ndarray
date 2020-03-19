@@ -4,7 +4,7 @@ add_executable(ndarray_test
 	ndarray_test.cpp
 	nd/ndarray.hpp
 )
-target_compile_options(ndarray_test PRIVATE "-mbmi2")
+target_compile_options(ndarray_test PRIVATE "-march=native")
 #set_target_properties(ndarray_test PROPERTIES
 #    CXX_STANDARD 11
 #    CXX_STANDARD_REQUIRED YES

@@ -87,23 +87,43 @@ protected:
 			throw std::invalid_argument("Each element of a Z-Order array must (currently) be a power-of-two");
 		}
 		
+	
+		std::array<unsigned int,D> sorted_shape_indices;
+		std::iota(std::begin(sorted_shape_indices),std::end(sorted_shape_indices),0);
+		std::sort(std::begin(sorted_shape_indices),std::end(sorted_shape_indices),
+			[&shp](unsigned int ai,unsigned int bi) { return shp[ai] < shp[bi]; }
+		);
 		
 		shape_type sorted_shape=shp;
-		std::sort(std::begin(sorted_shape),std::begin(sorted_shape)+D);
-		for(unsigned int d=0;d<D;d++)
+		for(unsigned int ai=0;ai<D;ai++) sorted_shape[ai]=shp[sorted_shape_indices[ai]];
+		//std::sort(std::begin(sorted_shape),std::begin(sorted_shape)+D);
+		unsigned int cistart=0;
+		size_t cisize=1;
+		std::fill(std::begin(_masks),std::begin(_masks)+D,0);
+		
+		for(unsigned int sdi=0;sdi<D;sdi++)
 		{
-			unsigned int ci=d;
-			size_t outmask=0;
-			for(unsigned nzc=0;sorted_shape[nzc]==0 && nzc < D;nzc++) ci--;
-			for(size_t current_dim_bit=0;(size_t(1)<<current_dim_bit)<shp[d];current_dim_bit++)
+			if(cisize != sorted_shape[sdi])
 			{
-				unsigned int ciDid=0;
-				while((size_t(1)<<current_dim_bit) >= sorted_shape[ciDid]) ciDid++; 
-				ci+=(D-ciDid);
-				outmask|=size_t(1) << ci;
+				size_t maxci=0;
+				for(unsigned int sdi2=sdi;sdi2<D;sdi2++)
+				{
+					unsigned int d=sorted_shape_indices[sdi2];
+					size_t maskout=0;
+					unsigned int ci=cistart+sdi2-sdi;
+					for(size_t current_dim_bit=0;(cisize<<current_dim_bit)<sorted_shape[sdi];current_dim_bit++)
+					{
+						if(ci > maxci) maxci=ci;
+						maskout|=size_t(1) << ci;
+						ci+=D-sdi;
+					}
+					_masks[d]|=maskout;
+				}
+				cisize=sorted_shape[sdi];
+				cistart=maxci+1;
 			}
-			_masks[d]=outmask >> D;
 		}
+		
 		return sz;
 	}
 	size_t setMasks(const shape_type& shp)
