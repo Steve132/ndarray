@@ -10,5 +10,4 @@ add_executable(ndarray_test
 	ndarray_test.cpp
 	nd/ndarray.hpp
 )
-target_compile_options(ndarray_test PRIVATE "-march=native")
 target_link_libraries(ndarray_test ndarray)
