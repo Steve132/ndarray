@@ -11,7 +11,7 @@ template<> Array<uint8_t,3,ColMajorOrder> nd::image::load_image(const std::strin
 	int x,y,c;
 	uint8_t* dat=stbi_load(filename.c_str(),&x,&y,&c,desired_channels);
 	if(desired_channels!=0) c=desired_channels;
-	Array<uint8_t,3,ColMajorOrder> img({c,x,y});
+	Array<uint8_t,3,ColMajorOrder> img({(size_t)c,(size_t)x,(size_t)y});
 	size_t N=x;
 	N*=y;N*=c;
 	memcpy(img.data(),dat,N*sizeof(uint8_t));
@@ -23,7 +23,7 @@ template<> Array<float,3,ColMajorOrder> nd::image::load_image(const std::string&
 	int x,y,c;
 	float* dat=stbi_loadf(filename.c_str(),&x,&y,&c,desired_channels);
 	if(desired_channels!=0) c=desired_channels;
-	Array<float,3,ColMajorOrder> img({c,x,y});
+	Array<float,3,ColMajorOrder> img({(size_t)c,(size_t)x,(size_t)y});
 	size_t N=x;
 	N*=y;N*=c;
 	memcpy(img.data(),dat,N*sizeof(float));
@@ -35,7 +35,7 @@ template<> Array<uint16_t,3,ColMajorOrder> nd::image::load_image(const std::stri
 	int x,y,c;
 	uint16_t* dat=stbi_load_16(filename.c_str(),&x,&y,&c,desired_channels);
 	if(desired_channels!=0) c=desired_channels;
-	Array<uint16_t,3,ColMajorOrder> img({c,x,y});
+	Array<uint16_t,3,ColMajorOrder> img({(size_t)c,(size_t)x,(size_t)y});
 	size_t N=x;
 	N*=y;N*=c;
 	memcpy(img.data(),dat,N*sizeof(uint16_t));
