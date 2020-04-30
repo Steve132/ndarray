@@ -29,6 +29,13 @@ public:
 	using storage_type::operator[];
 	using storage_type::storage_type;
 	
+	template<class T2>
+	Array(const Array<T2,D,AbstractStorageType>& arr2):Array(arr2.shape())
+	{
+		std::copy(arr2.begin(),arr2.end(),std::begin(*this));
+	}
+	
+	
 	template<class ...IndexTail> 
 	const value_type& operator()(const IndexTail&... tail) const { 
 		return operator[](storage_type::ravel(tail...)); 

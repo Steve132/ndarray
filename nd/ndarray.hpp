@@ -7,5 +7,6 @@
 #include "ColMajorOrder.hpp"
 #include "RowMajorOrder.hpp"
 #include "ZOrder.hpp"
+#include "TriangleOrder.hpp"
 
 #endif

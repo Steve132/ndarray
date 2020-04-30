@@ -160,6 +160,14 @@ public:
 		return out;
 	}
 	
+	size_t ravel_neighbor_offset(size_t rdex,size_t dim,index_type off) const
+	{
+		size_t msk=_masks[dim];
+		size_t nmsk=~_masks[dim];
+		size_t result=(rdex & msk)|nmsk+pdep(off,msk);
+		return rdex & nmsk + result & msk;
+	}
+	
 	bool operator==(const Impl& o) const { return true; }
 	template<class OrderImpl>
 	bool operator==(const OrderImpl& o) const { return false; }

@@ -1,8 +1,30 @@
 #include "nd/ndarray.hpp"
 #include<random>
 
+template<unsigned D>
+std::array<size_t,D> index_to_coords(size_t i)
+{
+	std::array<size_t,D> va;
+	
+	return va;
+}
+
+
 int main()
 {
+	static const unsigned nD=2;
+	
+	for(size_t i=0;i<10;i++)
+	{
+		auto v=index_to_coords<nD>(i);
+		std::cout << i << ":{";
+		for(unsigned d=0;d<nD;d++)
+		{
+			std::cout << v[d] << ",";
+		}
+		std::cout << "}\n";
+	}
+	//return 0;
 	nd::Array<int,3> a({50,50,50});
 	nd::Array<double,3> b({3,3,3});
 	//auto G=a+b;

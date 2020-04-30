@@ -25,13 +25,14 @@ protected:
 private:
 	size_t setShape(const shape_type& tshape)
 	{
+		_strides[0]=1;
 		std::partial_sum(
 			std::begin(tshape),
-			std::begin(tshape)+D,
-			std::begin(_strides),
+			std::begin(tshape)+D-1,
+			std::begin(_strides)+1,
 			[](size_t a,size_t b){ return a*b; } 
 		);
-		return _strides[D-1];
+		return _strides[D-1]*tshape[D-1];
 	}
 public:
 	Impl(VALUETYPE* ptr,const shape_type& tshape):
@@ -44,21 +45,28 @@ public:
 	
 	template<class IndexType>
 	size_t ravel(const IndexType& index) const {
-		return index[0]+std::inner_product(std::begin(index)+1,std::begin(index)+D,std::begin(_strides),size_t(0));
+		return std::inner_product(std::begin(index),std::begin(index)+D,std::begin(_strides),size_t(0));
 	}
+	
+	size_t ravel_neighbor_offset(size_t rdex,size_t dim,index_type off) const
+	{
+		return rdex+off*_strides[dim];
+	}
+	
 	template<class IndexHead1,class IndexHead2,class... IndexTail>
 	size_t ravel(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
 		return ravel(std::array<IndexHead1,2+sizeof...(tail)>{index1,index2,tail...});
 	}
 	index_type unravel(size_t index) const {
 		index_type out;
-		auto outiter=std::rbegin(out);
-		auto rend=std::rbegin(_strides)+D;
-		for(auto stiter=std::rbegin(_strides)+1;stiter!=rend;stiter++,outiter++){	
-			*(outiter)=index/(*stiter);
-			index=index%(*stiter);
+		auto outiter=D-1;
+		auto rend=0;
+		for(unsigned di=D-1;di!=0;di--){	
+			size_t st=_strides[di];
+			out[di]=index/st;
+			index=index%st;
 		}
-		*outiter=index;
+		out[0]=index;
 		return out;
 	}
 	index_type unravel(const iterator_type& at) const { //helper method for iterators

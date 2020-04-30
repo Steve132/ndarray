@@ -36,6 +36,7 @@ public:
 		_ptr(_vecdata ? _vecdata.get() : o._ptr),
 		_size(o._size)
 	{}
+	
 	ContiguousMemView& operator=(const ContiguousMemView& o)
 	{
 		if(!o._vecdata)
