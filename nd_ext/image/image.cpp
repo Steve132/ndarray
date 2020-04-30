@@ -62,30 +62,34 @@ template<> void nd::image::save_image(const Array<uint8_t,3,ColMajorOrder>& img,
 		return;
 	}
 	int result;
+	if(img.shape(0) == 0 || img.shape(0) > 4)
+	{
+		throw std::runtime_error(std::string("Image has wrong number of channels:")+filename);
+	}
 	switch(ext)
 	{
 		case 'p':
 		case 'P':
-			result=stbi_write_png(filename.c_str(),img.shape(0),img.shape(1),img.shape(2),img.data(),img.shape(0)*img.shape(1)*sizeof(uint8_t));
+			result=stbi_write_png(filename.c_str(),img.shape(1),img.shape(2),img.shape(0),img.data(),img.shape(0)*img.shape(1)*sizeof(uint8_t));
 			break;
 		case 't':
 		case 'T':
-			result=stbi_write_tga(filename.c_str(),img.shape(0),img.shape(1),img.shape(2),img.data());
+			result=stbi_write_tga(filename.c_str(),img.shape(1),img.shape(2),img.shape(0),img.data());
 			break;
 		case 'j':
 		case 'J':
-			result=stbi_write_jpg(filename.c_str(),img.shape(0),img.shape(1),img.shape(2),img.data(),0);
+			result=stbi_write_jpg(filename.c_str(),img.shape(1),img.shape(2),img.shape(0),img.data(),0);
 			break;
 		case 'b':
 		case 'B':
-			result=stbi_write_bmp(filename.c_str(),img.shape(0),img.shape(1),img.shape(2),img.data());
+			result=stbi_write_bmp(filename.c_str(),img.shape(1),img.shape(2),img.shape(0),img.data());
 			break;
 		default:
 			throw std::runtime_error(std::string("Unrecognized Extension in file:")+filename);
 	};
-	if(result != 0)
+	if(!result)
 	{
-		throw std::runtime_error(std::string("Failed to save HDR file:")+filename);
+		throw std::runtime_error(std::string("Failed to save file:")+filename);
 	}
 }
 template<> void nd::image::save_image(const Array<float,3,ColMajorOrder>& img,const std::string& filename)
@@ -98,8 +102,12 @@ template<> void nd::image::save_image(const Array<float,3,ColMajorOrder>& img,co
 		save_image(cimg,filename);
 		return;
 	}
-	int result=stbi_write_hdr(filename.c_str(),img.shape(0),img.shape(1),img.shape(2),img.data());
-	if(result != 0)
+	if(img.shape(2) == 0 || img.shape(2) > 4)
+	{
+		throw std::runtime_error(std::string("Image has wrong number of channels:")+filename);
+	}
+	int result=stbi_write_hdr(filename.c_str(),img.shape(1),img.shape(2),img.shape(0),img.data());
+	if(!result)
 	{
 		throw std::runtime_error(std::string("Failed to save HDR file:")+filename);
 	}
