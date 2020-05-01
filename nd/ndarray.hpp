@@ -4,6 +4,7 @@
 #include "Array.hpp"
 //#include "ColMajorOrder.hpp"
 #include "RowMajorOrder.hpp"
+#include "Shape.hpp"
 //#include "ZOrder.hpp"
 //#include "TriangleOrder.hpp"
 

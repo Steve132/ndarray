@@ -64,54 +64,69 @@ public:
 		return unravel(at-impl::ContiguousOrderBaseImpl<VALUETYPE>::begin());
 	}
 	
-	template<class BinaryOp,class Barray>
-	auto elementWise(BinaryOp f,const Barray& b) const->
-		Array<decltype(f(operator[](0),b[0])),D,order_type>
+	template<class BinaryOp,class ArrayB>
+	auto elementWise(BinaryOp f,const ArrayB& b) const->
+		typename std::enable_if<std::is_same<layout_type,typename ArrayB::layout_type>::value,
+			Array<decltype(f(operator[](0),b[0])),D,order_type>
+		>::type
 	{
 		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
 		Array<decltype(f(operator[](0),b[0])),D,order_type> out(this->shape());
-		if(std::is_same<layout_type,typename Barray::layout_type>::value)
+		size_t bN=b.size();
+		for(size_t bi=0;bi<b.size();bi++)
 		{
-			for(size_t bi=0;bi<b.size();bi++)
-			{
-				out[bi]=f(operator[](bi),b[bi]);
-			}
+			out[bi]=f(operator[](bi),b[bi]);
 		}
-		else
+		return out;
+	}
+	template<class BinaryOp,class ArrayB>
+	auto elementWise(BinaryOp f,const ArrayB& b) const->
+		typename std::enable_if<!std::is_same<layout_type,typename ArrayB::layout_type>::value,
+			Array<decltype(f(operator[](0),b[0])),D,order_type>
+		>::type
+	{
+		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
+		Array<decltype(f(operator[](0),b[0])),D,order_type> out(this->shape());
+		size_t bN=b.size();
+		for(size_t bi=0;bi<bN;bi++)
 		{
-			size_t bN=b.size();
-			for(size_t bi=0;bi<bN;bi++)
-			{
-				size_t ai=layout_type::ravel(b.unravel(bi));
-				out[ai]=f(operator[](ai),b[bi]);
-			}
+			size_t ai=layout_type::ravel(b.unravel(bi));
+			out[ai]=f(operator[](ai),b[bi]);
 		}
 		return out;
 	}
 
+
 	template<class BinaryOp,class ArrayB>
-	Array& elementWiseInPlace(BinaryOp f,const ArrayB& b)
+	auto elementWiseInPlace(BinaryOp f,const ArrayB& b)->
+		typename std::enable_if<std::is_same<layout_type,typename ArrayB::layout_type>::value,
+			Array&
+		>::type
 	{
 		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
-		if(layout_type::operator==(b.storage()))
+		size_t bN=b.size();
+		for(size_t i=0;i<bN;i++)
 		{
-			size_t bN=b.size();
-			for(size_t i=0;i<bN;i++)
-			{
-				f(operator[](i),b[i]);
-			}
-		}
-		else
-		{
-			size_t bN=b.size();
-			for(size_t bi=0;bi<bN;bi++)
-			{
-				size_t ai=layout_type::ravel(b.unravel(bi));
-				f(operator[](ai),b[bi]);
-			}
+			f(operator[](i),b[i]);
 		}
 		return *this;
 	}
+	template<class BinaryOp,class ArrayB>
+	auto elementWiseInPlace(BinaryOp f,const ArrayB& b)->
+		typename std::enable_if<!std::is_same<layout_type,typename ArrayB::layout_type>::value,
+			Array&
+		>::type
+	{
+		if(this->shape()!=b.shape()) throw std::runtime_error("The two arrays must have the same shape to have an elementWise operation");
+		size_t bN=b.size();
+		for(size_t bi=0;bi<bN;bi++)
+		{
+			size_t ai=layout_type::ravel(b.unravel(bi));
+			f(operator[](ai),b[bi]);
+		}
+		return *this;
+	}
+
 	template<class UnaryOp>
 	auto elementWise(UnaryOp f) const->
 	Array<decltype(f(operator[](0))),D,order_type>
