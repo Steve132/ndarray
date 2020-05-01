@@ -70,7 +70,7 @@ auto ConvolveSame(const ArrayA& a,const ArrayB& k)->
 	using value_type=decltype(a[0]*k[0]+a[0]*k[0]);
 	using ArrayOut=Array<value_type,ArrayA::num_dimensions,typename ArrayA::storage_type>;
 	
-	using itype=typename ArrayOut::index_type;
+	using itype=typename ArrayOut::coord_type;
 	
 	ArrayOut outarray(a.shape(),value_type{});
 	

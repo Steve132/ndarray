@@ -1,7 +1,5 @@
-
-
-#ifndef NDARRAY_SRC_STORAGE_ORDER_BASE_HPP
-#define NDARRAY_SRC_STORAGE_ORDER_BASE_HPP
+#ifndef NDARRAY_SRC_LAYOUT_BASE_HPP
+#define NDARRAY_SRC_LAYOUT_BASE_HPP
 
 #include<array>
 #include<cstddef>
@@ -12,15 +10,17 @@ namespace impl
 {
 
 template<unsigned int D>
-class StorageOrderBase
+class LayoutBase
 {
 public:
+	using index_type=ptrdiff_t;
 	using shape_type=std::array<size_t,D>;
-	using index_type=std::array<ptrdiff_t,D>;
+	using coord_type=std::array<index_type,D>;
 protected:
 	shape_type _shape;
-	StorageOrderBase(const shape_type& tshape):_shape(tshape)
+	LayoutBase(const shape_type& tshape):_shape(tshape)
 	{}
+	size_t num_elements() const;
 public:
 	const shape_type& shape() const { return _shape; }
 	size_t shape(unsigned int d) const { return _shape[d]; }

@@ -18,7 +18,7 @@ class Impl: public impl::ContiguousOrderBaseImpl<VALUETYPE,D>
 public:
 	using value_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::value_type;
 	using shape_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::shape_type;
-	using index_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::index_type;
+	using coord_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::coord_type;
 	using iterator_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::iterator_type;
 	using const_iterator_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::const_iterator_type;
 protected:
@@ -34,6 +34,9 @@ private:
 		return _strides[D-1]*tshape[D-1];
 	}
 public:
+	const shape_type& stride() const { return _strides; }
+	const size_t& stride(unsigned int di) const { return _strides[di]; }
+	
 	Impl(VALUETYPE* ptr,const shape_type& tshape):
 		impl::ContiguousOrderBaseImpl<VALUETYPE,D>(setShape(tshape),ptr,tshape)
 	{}
@@ -42,21 +45,21 @@ public:
 		impl::ContiguousOrderBaseImpl<VALUETYPE,D>(setShape(tshape),tshape,fval)
 	{}
 	
-	size_t ravel(const index_type& index) const {
+	size_t ravel(const coord_type& index) const {
 		return std::inner_product(std::begin(index),std::begin(index)+D,std::begin(_strides),size_t(0));
 	}
 	
-	size_t ravel_neighbor_offset(size_t rdex,size_t dim,index_type off) const
+	size_t ravel_neighbor_offset(size_t rdex,size_t dim,coord_type off) const
 	{
 		return rdex+off*_strides[dim];
 	}
 	
 	template<class IndexHead1,class IndexHead2,class... IndexTail>
 	size_t ravel(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
-		return ravel(index_type{(ptrdiff_t)index1,(ptrdiff_t)index2,static_cast<ptrdiff_t>(tail)...});
+		return ravel(coord_type{(ptrdiff_t)index1,(ptrdiff_t)index2,static_cast<ptrdiff_t>(tail)...});
 	}
-	index_type unravel(size_t index) const {
-		index_type out;
+	coord_type unravel(size_t index) const {
+		coord_type out;
 		auto outiter=D-1;
 		auto rend=0;
 		for(unsigned di=D-1;di!=0;di--){	
@@ -67,7 +70,7 @@ public:
 		out[0]=index;
 		return out;
 	}
-	index_type unravel(const iterator_type& at) const { //helper method for iterators
+	coord_type unravel(const iterator_type& at) const { //helper method for iterators
 		return unravel(at-impl::ContiguousOrderBaseImpl<VALUETYPE,D>::begin());
 	}
 	
@@ -75,7 +78,6 @@ public:
 	template<class OrderImpl>
 	bool operator==(const OrderImpl& o) const { return false; }
 	
-	using impl::ContiguousOrderBaseImpl<VALUETYPE,D>::operator[];
 	
 	/*TODO: This doesn't work for row major, even
 	//TODO make sure there's handling for D==0 or D==1

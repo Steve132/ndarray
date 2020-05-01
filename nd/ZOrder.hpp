@@ -18,7 +18,7 @@ class Impl: public impl::ContiguousOrderBaseImpl<VALUETYPE,D>
 public:
 	using value_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::value_type;
 	using shape_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::shape_type;
-	using index_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::index_type;
+	using coord_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::coord_type;
 	using iterator_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::iterator_type;
 	using const_iterator_type=typename impl::ContiguousOrderBaseImpl<VALUETYPE,D>::const_iterator_type;
 protected:
@@ -151,8 +151,8 @@ public:
 	size_t ravel(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
 		return ravel(std::array<IndexHead1,2+sizeof...(tail)>{index1,index2,tail...});
 	}
-	index_type unravel(size_t index) const {
-		index_type out;
+	coord_type unravel(size_t index) const {
+		coord_type out;
 		for(unsigned int d=0;d<D;d++)
 		{
 			out[d]=pext(index,_masks[d]);
@@ -160,7 +160,7 @@ public:
 		return out;
 	}
 	
-	size_t ravel_neighbor_offset(size_t rdex,size_t dim,index_type off) const
+	size_t ravel_neighbor_offset(size_t rdex,size_t dim,coord_type off) const
 	{
 		size_t msk=_masks[dim];
 		size_t nmsk=~_masks[dim];
