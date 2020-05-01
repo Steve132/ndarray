@@ -13,7 +13,7 @@ namespace nd
 template<class ArrayClass,typename std::enable_if<ArrayClass::num_dimensions==1,int>::type = 0>
 std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 {
-	for(size_t i=0;i<arr.shape(0);i++) out << arr(i) << " ";
+	for(size_t i=0;i<arr.shape(0);i++) out << arr(i) << "\n";
 	return out;
 }
 template<class ArrayClass,typename std::enable_if<ArrayClass::num_dimensions==2,int>::type = 0>
@@ -27,17 +27,27 @@ std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 	return out;
 }
 
+/*
+namespace impl
+{
+template<class ArrayClass,unsigned int DI,typename std::enable_if<DI==0,int>::type = 0>
+static void print_recursive(std::ostream& out,const ArrayClass& arr)
+{
+	for(size_t i=0;i<arr.shape(0);i++) out << arr(i) << " ";	
+}
+
+}
 template<class ArrayClass,typename std::enable_if<(ArrayClass::num_dimensions > 2),int>::type = 0>
 std::ostream& operator<<(std::ostream& out,const ArrayClass& arr)
 {
 	for(size_t i=0;i<arr.shape(ArrayClass::num_dimensions-1);i++)
 	{
-		auto outmap=arr.pop_order_ref(i);
+		auto outmap=arr.pop_order_ref(i); //TODO this doesn't work because the whole thing is implemented bizarrely
 		out << "Dim[" << ArrayClass::num_dimensions-1 << "]=" << i << "\n";
 		out << outmap;
 	}
 	return out;
-}
+}*/
 
 //external values because SFNIAE for operator selection.
 #define BINARY_OPERATOR_TEMPLATE( XXX ) \

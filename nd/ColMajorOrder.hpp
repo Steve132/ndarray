@@ -11,6 +11,7 @@ template<class V,unsigned int D, class StG> class Array;
 
 struct ColMajorOrder
 {
+	
 template<class VALUETYPE,unsigned int D>
 class Impl: public impl::ContiguousOrderBaseImpl<VALUETYPE,D>
 {
@@ -26,12 +27,10 @@ private:
 	size_t setShape(const shape_type& tshape)
 	{
 		_strides[0]=1;
-		std::partial_sum(
-			std::begin(tshape),
-			std::begin(tshape)+D-1,
-			std::begin(_strides)+1,
-			[](size_t a,size_t b){ return a*b; } 
-		);
+		for(unsigned int di=0;di<(D-1);di++)
+		{
+			_strides[di+1]=_strides[di]*tshape[di];
+		}
 		return _strides[D-1]*tshape[D-1];
 	}
 public:
@@ -43,8 +42,7 @@ public:
 		impl::ContiguousOrderBaseImpl<VALUETYPE,D>(setShape(tshape),tshape,fval)
 	{}
 	
-	template<class IndexType>
-	size_t ravel(const IndexType& index) const {
+	size_t ravel(const index_type& index) const {
 		return std::inner_product(std::begin(index),std::begin(index)+D,std::begin(_strides),size_t(0));
 	}
 	
@@ -55,7 +53,7 @@ public:
 	
 	template<class IndexHead1,class IndexHead2,class... IndexTail>
 	size_t ravel(const IndexHead1& index1,const IndexHead2& index2,const IndexTail&... tail) const {
-		return ravel(std::array<IndexHead1,2+sizeof...(tail)>{index1,index2,tail...});
+		return ravel(index_type{(ptrdiff_t)index1,(ptrdiff_t)index2,static_cast<ptrdiff_t>(tail)...});
 	}
 	index_type unravel(size_t index) const {
 		index_type out;
@@ -79,6 +77,7 @@ public:
 	
 	using impl::ContiguousOrderBaseImpl<VALUETYPE,D>::operator[];
 	
+	/*TODO: This doesn't work for row major, even
 	//TODO make sure there's handling for D==0 or D==1
 	//TODO: this doesnt' work with any data ordering that's not Rowise or Colwise (Zorder and non-contig don't work)
 	//Honestly this is why we should go back to inheritance from storage order.  Different accessors for different storage orders
@@ -93,7 +92,7 @@ public:
 		zed[D-1]=d;
 		const value_type* slicebegin=impl::ContiguousOrderBaseImpl<VALUETYPE,D>::data()+ravel(zed);
 		return Array<value_type,D-1,ColMajorOrder>(const_cast<value_type*>(slicebegin),shp);
-	}
+	}*/
 };
 };
 
