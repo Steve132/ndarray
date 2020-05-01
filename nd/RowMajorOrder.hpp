@@ -34,7 +34,7 @@ struct RowMajorOrder
 		const shape_type& stride() const { return _strides; }
 		const size_t& stride(unsigned int di) const { return _strides[di]; }
 		
-		Layout(const shape_type& tshape):
+		Layout(const shape_type& tshape={}):
 			impl::LayoutBase<D>(tshape)
 		{
 			setShape(tshape);
