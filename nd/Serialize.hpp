@@ -4,17 +4,12 @@
 #include<iostream>
 #include<type_traits>
 #include<algorithm>
-
+#include<functional>
 
 namespace nd
 {
 
-	template<class ArrayType,class PutFunctionType,
-		typename std::enable_if<
-			std::is_fundamental<typename ArrayType::value_type>::value, 
-		int>::type = 0
-	>
-	void write(const ArrayType& arr,PutFunctionType put);
+
 };
 
 #if __cplusplus >= 202002L
@@ -58,7 +53,7 @@ namespace impl
 	template<class T,class PutFunctionType> 
 	inline void endian_put(const T& a,PutFunctionType& pf)
 	{
-		const uint8_t* fb=reinterpret_cast<const uint8_t*>(&a);
+		const char* fb=reinterpret_cast<const char*>(&a);
 		if(is_big_endian)
 		{
 			for(unsigned i=0;i<sizeof(T);i++)
@@ -81,13 +76,13 @@ namespace impl
 		}
 		else
 		{
-			pf(be,ed);
+			pf(reinterpret_cast<char*>(be),reinterpret_cast<char*>(ed));
 		}
 	}
 	template<class T,class GetFunctionType> 
 	inline void endian_get(T& a,GetFunctionType& pf)
 	{
-		uint8_t* fb=reinterpret_cast<uint8_t*>(&a);
+		char* fb=reinterpret_cast<char*>(&a);
 		if(is_big_endian)
 		{
 			for(unsigned i=0;i<sizeof(T);i++)
@@ -110,7 +105,7 @@ namespace impl
 		}
 		else
 		{
-			pf(be,ed);
+			pf(reinterpret_cast<char*>(be),reinterpret_cast<char*>(ed));
 		}
 	}
 	/*template<class T>
@@ -139,9 +134,9 @@ namespace impl
 	template<> inline uint32_t get_serialize_typecode<long double>() { return 11; }
 	
 	template<class T>
-	uint32_t get_storage_typecode() { return 0x80000000; }
+	uint32_t get_order_typecode() { return 0x80000000; }
 	
-	template<> inline uint32_t get_storage_typecode<nd::RowMajorOrder>(){ return 1;}
+	template<> inline uint32_t get_order_typecode<nd::RowMajorOrder>(){ return 1;}
 	//template<> inline uint32_t get_storage_typecode<nd::RowMajorOrder>(){ return 2;}
 }
 
@@ -159,27 +154,27 @@ void write(const ArrayType& arr,PutFunctionType& put)
 	{
 		endian_put(static_cast<uint64_t>(d),put);
 	}
-	endian_put(impl::get_storage_typecode<typename ArrayType::abstract_storage_type>(),put);
+	endian_put(impl::get_order_typecode<typename ArrayType::order_type>(),put);
 	endian_put(std::begin(arr),std::end(arr),put);
 }
-template<class ArrayType,class PutFunctionType,
+template<class ArrayType,
 typename std::enable_if<
 std::is_fundamental<typename ArrayType::value_type>::value, 
 int>::type = 0
 >
-ArrayType read(PutFunctionType& getf)
+ArrayType read(std::function<void (char*,char*)>& getf)
 {
 	uint32_t magicnum;
-	endian_get(magicnum,getf);
+	impl::endian_get(magicnum,getf);
 	if(impl::serialize_magic_number != magicnum) throw std::runtime_error("Bad magic number!");
 	
 	uint32_t typecode;
-	endian_get(typecode,getf);
+	impl::endian_get(typecode,getf);
 	uint32_t etypecode=impl::get_serialize_typecode<typename ArrayType::value_type>();
 	if(etypecode != typecode) throw std::runtime_error("Did not recognize typecode");
 	
 	uint16_t dims;
-	endian_get(dims,getf);
+	impl::endian_get(dims,getf);
 	unsigned int edims=ArrayType::num_dimensions;
 	if(edims != dims) throw std::runtime_error("Number of dimensions does not match");
 	
@@ -187,19 +182,33 @@ ArrayType read(PutFunctionType& getf)
 	for(size_t di=0;di<ArrayType::num_dimensions;di++)
 	{
 		uint64_t tdim;
-		endian_get(tdim,getf);
+		impl::endian_get(tdim,getf);
 		shapein[di]=static_cast<size_t>(tdim);
 	}
 	
 	uint32_t abstype;
-	endian_get(abstype,getf);
-	uint32_t eabstype=impl::get_storage_typecode<typename ArrayType::abstract_storage_type>();
+	impl::endian_get(abstype,getf);
+	uint32_t eabstype=impl::get_order_typecode<typename ArrayType::order_type>();
 	if(abstype != eabstype) throw std::runtime_error("Bad abstract_storage_type");
 	
 	ArrayType arr(shapein);
 	
-	endian_get(std::begin(arr),std::end(arr),getf);
+	impl::endian_get(std::begin(arr),std::end(arr),getf);
 	return arr;
+}
+
+template<class ArrayType,
+typename std::enable_if<
+std::is_fundamental<typename ArrayType::value_type>::value, 
+int>::type = 0
+>
+ArrayType read(std::istream& ini)
+{
+	std::function<void (char*,char*)> f
+	=[&ini](char* a,char* b){
+		ini.read(reinterpret_cast<char*>(a),b-a);
+	};
+	return read<ArrayType>(f);
 }
 }
 #endif
