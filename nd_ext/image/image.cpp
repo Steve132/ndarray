@@ -62,7 +62,7 @@ template<> void nd::image::save_image(const Array<uint8_t,3,RowMajorOrder>& img,
 		return;
 	}
 	int result;
-	if(img.shape(0) == 0 || img.shape(0) > 4)
+	if(img.shape(2) == 0 || img.shape(2) > 4)
 	{
 		throw std::runtime_error(std::string("Image has wrong number of channels:")+filename);
 	}
