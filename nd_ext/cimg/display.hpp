@@ -21,6 +21,12 @@ nd::Coord<2> select_point(const nd::Array<T,3,nd::RowMajorOrder>& arr,const std:
 template<class T>
 nd::Coord<2> select_point(const nd::Array<T,2,nd::RowMajorOrder>& arr,const std::string& title="Image");
 
+template<class T>
+std::array<nd::Coord<2>,2> select_segment(const nd::Array<T,3,nd::RowMajorOrder>& arr,const std::string& title="Image");
+
+template<class T>
+std::array<nd::Coord<2>,2> select_segment(const nd::Array<T,2,nd::RowMajorOrder>& arr,const std::string& title="Image");
+
 }
 
 }
