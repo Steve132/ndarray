@@ -10,6 +10,7 @@ template<> Array<uint8_t,3,RowMajorOrder> nd::image::load_image(const std::strin
 {
 	int x,y,c;
 	uint8_t* dat=stbi_load(filename.c_str(),&x,&y,&c,desired_channels);
+	if(!dat) throw std::runtime_error(filename+" not found or failed to load.");
 	if(desired_channels!=0) c=desired_channels;
 	Array<uint8_t,3,RowMajorOrder> img({(size_t)y,(size_t)x,(size_t)c});
 	size_t N=x;
@@ -22,6 +23,7 @@ template<> Array<float,3,RowMajorOrder> nd::image::load_image(const std::string&
 {
 	int x,y,c;
 	float* dat=stbi_loadf(filename.c_str(),&x,&y,&c,desired_channels);
+	if(!dat) throw std::runtime_error(filename+" not found or failed to load.");
 	if(desired_channels!=0) c=desired_channels;
 	Array<float,3,RowMajorOrder> img({(size_t)y,(size_t)x,(size_t)c});
 	size_t N=x;
@@ -34,6 +36,7 @@ template<> Array<uint16_t,3,RowMajorOrder> nd::image::load_image(const std::stri
 {
 	int x,y,c;
 	uint16_t* dat=stbi_load_16(filename.c_str(),&x,&y,&c,desired_channels);
+	if(!dat) throw std::runtime_error(filename+" not found or failed to load.");
 	if(desired_channels!=0) c=desired_channels;
 	Array<uint16_t,3,RowMajorOrder> img({(size_t)y,(size_t)x,(size_t)c});
 	size_t N=x;

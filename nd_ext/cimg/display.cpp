@@ -1,4 +1,8 @@
 #include "display.hpp"
+#ifdef __ANDROID__
+#define cimg_display 0
+#endif
+
 #include <CImg.h>
 using namespace cimg_library;
 
@@ -34,7 +38,7 @@ nd::Coord<2> select_point(const nd::Array<T,3,nd::RowMajorOrder>& arr,const std:
 {
 	CImg<T> ref(arr.data(),arr.shape(2),arr.shape(1),arr.shape(0),1,true);
 	CImg<uint32_t> result=ref.get_permute_axes("yzcx").get_select(title.c_str(),0);
-	nd::Coord<2> out{result[1],result[0]};
+	nd::Coord<2> out{(ptrdiff_t)result[1],(ptrdiff_t)result[0]};
 	return out;
 }
 template<class T>
@@ -42,7 +46,7 @@ nd::Coord<2> select_point(const nd::Array<T,2,nd::RowMajorOrder>& arr,const std:
 {
 	CImg<T> ref(arr.data(),1,arr.shape(1),arr.shape(0),1,true);
 	CImg<uint32_t> result=ref.get_permute_axes("yzcx").get_select(title.c_str(),0);
-	nd::Coord<2> out{result[1],result[0]};
+	nd::Coord<2> out{(ptrdiff_t)result[1],(ptrdiff_t)result[0]};
 	return out;
 }
 
@@ -55,7 +59,7 @@ std::array<nd::Coord<2>,2> select_segment(const nd::Array<T,3,nd::RowMajorOrder>
 {
 	CImg<T> ref(arr.data(),arr.shape(2),arr.shape(1),arr.shape(0),1,true);
 	CImg<uint32_t> result=ref.get_permute_axes("yzcx").get_select(title.c_str(),1);
-	std::array<nd::Coord<2>,2> out{nd::Coord<2>{result[1],result[0]},nd::Coord<2>{result[4],result[3]}};  
+	std::array<nd::Coord<2>,2> out{nd::Coord<2>{(ptrdiff_t)result[1],(ptrdiff_t)result[0]},nd::Coord<2>{(ptrdiff_t)result[4],(ptrdiff_t)result[3]}};
 	return out;
 }
 template<class T>
@@ -63,7 +67,7 @@ std::array<nd::Coord<2>,2> select_segment(const nd::Array<T,2,nd::RowMajorOrder>
 {
 	CImg<T> ref(arr.data(),1,arr.shape(1),arr.shape(0),1,true);
 	CImg<uint32_t> result=ref.get_permute_axes("yzcx").get_select(title.c_str(),1);
-	std::array<nd::Coord<2>,2> out{nd::Coord<2>{result[1],result[0]},nd::Coord<2>{result[4],result[3]}};
+	std::array<nd::Coord<2>,2> out{nd::Coord<2>{(ptrdiff_t)result[1],(ptrdiff_t)result[0]},nd::Coord<2>{(ptrdiff_t)result[4],(ptrdiff_t)result[3]}};
 	return out;
 }
 
