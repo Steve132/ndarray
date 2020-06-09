@@ -42,7 +42,7 @@ public:
 			storage_type(layout_type::num_elements())
 	{}
 	template<class ...StorageArgs>
-	Array(const shape_type& tshape,const StorageArgs& ...sa):
+	Array(const shape_type& tshape,StorageArgs ...sa):
 		layout_type(tshape),
 		storage_type(layout_type::num_elements(),sa...)
 	{}
