@@ -11,3 +11,5 @@ And Dlib.
 And Blitz++.
 
 https://github.com/danielaparker/acons
+
+https://github.com/dsharlet/array
