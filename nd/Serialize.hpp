@@ -76,7 +76,7 @@ namespace impl
 		}
 		else
 		{
-			pf(reinterpret_cast<char*>(be),reinterpret_cast<char*>(ed));
+			pf(reinterpret_cast<const char*>(be),reinterpret_cast<const char*>(ed));
 		}
 	}
 	template<class T,class GetFunctionType> 
@@ -147,15 +147,15 @@ int>::type = 0
 >
 void write(const ArrayType& arr,PutFunctionType& put)
 {
-	endian_put(impl::serialize_magic_number,put);
-	endian_put(impl::get_serialize_typecode<typename ArrayType::value_type>(),put);
-	endian_put(static_cast<uint16_t>(ArrayType::num_dimensions),put);
+	impl::endian_put(impl::serialize_magic_number,put);
+	impl::endian_put(impl::get_serialize_typecode<typename ArrayType::value_type>(),put);
+	impl::endian_put(static_cast<uint16_t>(ArrayType::num_dimensions),put);
 	for(size_t d:arr.shape())
 	{
-		endian_put(static_cast<uint64_t>(d),put);
+		impl::endian_put(static_cast<uint64_t>(d),put);
 	}
-	endian_put(impl::get_order_typecode<typename ArrayType::order_type>(),put);
-	endian_put(std::begin(arr),std::end(arr),put);
+	impl::endian_put(impl::get_order_typecode<typename ArrayType::order_type>(),put);
+	impl::endian_put(std::begin(arr),std::end(arr),put);
 }
 template<class ArrayType,
 typename std::enable_if<
@@ -210,5 +210,20 @@ ArrayType read(std::istream& ini)
 	};
 	return read<ArrayType>(f);
 }
+
+template<class ArrayType,
+typename std::enable_if<
+std::is_fundamental<typename ArrayType::value_type>::value, 
+int>::type = 0
+>
+void write(const ArrayType& arr,std::ostream& outp)
+{
+	std::function<void (const char*,const char*)> f
+	=[&outp](const char* a,const char* b){
+		outp.write(reinterpret_cast<const char*>(a),b-a);
+	};
+	write<ArrayType>(arr,f);
+}
+
 }
 #endif
