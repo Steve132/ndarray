@@ -10,6 +10,8 @@ std::array<size_t,D> index_to_coords(size_t i)
 }
 
 
+
+
 int main()
 {
 	static const unsigned nD=2;
