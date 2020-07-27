@@ -64,6 +64,8 @@ public:
 	operator()(const IndexTail&... tail) { 
 		return operator[](layout_type::ravel(tail...)); 
 	}
+	
+	using layout_type::unravel;
 	coord_type unravel(const iterator_type& at) const { //helper method for iterators
 		return unravel(at-impl::ContiguousOrderBaseImpl<VALUETYPE>::begin());
 	}

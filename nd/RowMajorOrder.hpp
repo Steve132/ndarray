@@ -59,12 +59,11 @@ struct RowMajorOrder
 			auto outiter=D-1;
 			auto rend=0;
 			
-			for(unsigned di=D-1;di>0;di--){	
-				size_t st=_strides[(D-1)-di];
-				out[di]=index/st;
+			for(unsigned di=0;di<D;di++){	
+				size_t st=_strides[di];
+				out[0]=index/st;
 				index=index%st;
 			}
-			out[0]=index;
 			return out;
 		}
 	};
