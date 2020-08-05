@@ -6,7 +6,7 @@
 #include<stdexcept>
 #include "src/ContiguousOrderBase.hpp"
 #include "RowMajorOrder.hpp"
-
+#include "Shape.hpp"
 
 namespace nd
 {
