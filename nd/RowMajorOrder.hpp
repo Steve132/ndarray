@@ -56,12 +56,10 @@ struct RowMajorOrder
 		}
 		coord_type unravel(size_t index) const {
 			coord_type out;
-			auto outiter=D-1;
-			auto rend=0;
 			
 			for(unsigned di=0;di<D;di++){	
 				size_t st=_strides[di];
-				out[0]=index/st;
+				out[di]=index/st;
 				index=index%st;
 			}
 			return out;
