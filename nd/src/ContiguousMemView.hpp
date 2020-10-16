@@ -78,7 +78,6 @@ public:
 	}
 	ContiguousMemView(ContiguousMemView&& o)
 	{
-		deleter();
 		_ptr=o._ptr;_size=o._size;_shared=o._shared;
 		o._ptr=nullptr;o._size=0;o._shared=false;
 	}
