@@ -59,8 +59,11 @@ private:
 public:
 	VALUETYPE* _ptr;
 	size_t _size;
-	ContiguousMemView(VALUETYPE* ptr,size_t sz=0):_ptr(sz==0 ? nullptr : ptr),_size(ptr ? 0 : sz),_shared(true)
-	{}
+	ContiguousMemView(VALUETYPE* ptr,size_t sz=0):_ptr(sz==0 ? nullptr : ptr),_size(ptr ? sz : 0),_shared(true)
+	{
+
+
+	}
 	ContiguousMemView(size_t sz=0,const VALUETYPE& v={}):_ptr(nullptr),_size(sz),_shared(false)
 	{
 		if(sz) 
