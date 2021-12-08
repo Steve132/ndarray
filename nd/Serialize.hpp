@@ -36,7 +36,8 @@ defined(__ARMEL__) || \
 defined(__THUMBEL__) || \
 defined(__AARCH64EL__) || \
 defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) ||\
-defined(_M_IX64) || defined(_M_IX86) || defined(_M_ARM) || defined(_M_IAMD64)
+defined(_M_X64) || defined(_M_IX86) || defined(_M_ARM) || defined(_M_AMD64)
+
 static constexpr bool is_big_endian=false;
 #else
 #error "I don't know what architecture this is!"
